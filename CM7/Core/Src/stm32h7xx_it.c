@@ -181,6 +181,19 @@ void TIM6_DAC_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles CM4 send event interrupt for CM7.
+  */
+void CM4_SEV_IRQHandler(void)
+{
+  /* USER CODE BEGIN CM4_SEV_IRQn 0 */
+
+  /* USER CODE END CM4_SEV_IRQn 0 */
+  /* USER CODE BEGIN CM4_SEV_IRQn 1 */
+
+  /* USER CODE END CM4_SEV_IRQn 1 */
+}
+
+/**
   * @brief This function handles LTDC global interrupt.
   */
 void LTDC_IRQHandler(void)
@@ -249,6 +262,20 @@ void DSI_IRQHandler(void)
   /* USER CODE BEGIN DSI_IRQn 1 */
 
   /* USER CODE END DSI_IRQn 1 */
+}
+
+/**
+  * @brief This function handles HSEM1 global interrupt.
+  */
+void HSEM1_IRQHandler(void)
+{
+  /* USER CODE BEGIN HSEM1_IRQn 0 */
+
+  /* USER CODE END HSEM1_IRQn 0 */
+  HAL_HSEM_IRQHandler();
+  /* USER CODE BEGIN HSEM1_IRQn 1 */
+
+  /* USER CODE END HSEM1_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

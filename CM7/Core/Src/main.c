@@ -61,6 +61,8 @@ LTDC_HandleTypeDef hltdc;
 
 QSPI_HandleTypeDef hqspi;
 
+UART_HandleTypeDef huart1;
+
 SDRAM_HandleTypeDef hsdram1;
 
 /* Definitions for TouchGFXTask */
@@ -94,15 +96,36 @@ static void MX_DSIHOST_DSI_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_CRC_Init(void);
 static void MX_JPEG_Init(void);
+static void MX_USART1_UART_Init(void);
 void TouchGFX_Task(void *argument);
 extern void videoTaskFunc(void *argument);
 
 /* USER CODE BEGIN PFP */
+static void UART1_DebugMessage(const char *msg);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void UART1_DebugMessage(const char *msg)
+{
+  uint16_t len = 0U;
+
+  if ((msg == NULL) || (huart1.gState == HAL_UART_STATE_RESET))
+  {
+    return;
+  }
+
+  while (msg[len] != '\0')
+  {
+    len++;
+  }
+
+  if (len > 0U)
+  {
+    (void)HAL_UART_Transmit(&huart1, (const uint8_t *)msg, len, 100U);
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -175,17 +198,32 @@ Error_Handler();
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART1_UART_Init();
+  UART1_DebugMessage("[DBG] MX_GPIO_Init OK\r\n");
+  UART1_DebugMessage("[DBG] MX_USART1_UART_Init OK\r\n");
+
+  UART1_DebugMessage("[DBG] MX_MDMA_Init\r\n");
   MX_MDMA_Init();
+  UART1_DebugMessage("[DBG] MX_FMC_Init\r\n");
   MX_FMC_Init();
+  UART1_DebugMessage("[DBG] MX_QUADSPI_Init\r\n");
   MX_QUADSPI_Init();
+  UART1_DebugMessage("[DBG] MX_DMA2D_Init\r\n");
   MX_DMA2D_Init();
+  UART1_DebugMessage("[DBG] MX_DSIHOST_DSI_Init\r\n");
   MX_DSIHOST_DSI_Init();
+  UART1_DebugMessage("[DBG] MX_LTDC_Init\r\n");
   MX_LTDC_Init();
+  UART1_DebugMessage("[DBG] MX_CRC_Init\r\n");
   MX_CRC_Init();
+  UART1_DebugMessage("[DBG] MX_JPEG_Init\r\n");
   MX_JPEG_Init();
+  UART1_DebugMessage("[DBG] MX_TouchGFX_Init\r\n");
   MX_TouchGFX_Init();
   /* Call PreOsInit function */
+  UART1_DebugMessage("[DBG] MX_TouchGFX_PreOSInit\r\n");
   MX_TouchGFX_PreOSInit();
+  UART1_DebugMessage("[DBG] Init de perifericos completo\r\n");
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -639,6 +677,54 @@ static void MX_QUADSPI_Init(void)
 }
 
 /**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
   * Enable MDMA controller clock
   */
 static void MX_MDMA_Init(void)
@@ -730,7 +816,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOJ, LCD_BL_Pin|FRAME_RATE_Pin|RENDER_TIME_Pin|VSYNC_FREQ_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOJ, LCD_BL_Pin|VSYNC_FREQ_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LCD_RESET_GPIO_Port, LCD_RESET_Pin, GPIO_PIN_RESET);
@@ -738,8 +824,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(MCU_ACTIVE_GPIO_Port, MCU_ACTIVE_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LCD_BL_Pin FRAME_RATE_Pin RENDER_TIME_Pin VSYNC_FREQ_Pin */
-  GPIO_InitStruct.Pin = LCD_BL_Pin|FRAME_RATE_Pin|RENDER_TIME_Pin|VSYNC_FREQ_Pin;
+  /*Configure GPIO pins : LCD_BL_Pin VSYNC_FREQ_Pin */
+  GPIO_InitStruct.Pin = LCD_BL_Pin|VSYNC_FREQ_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -857,6 +943,17 @@ void MPU_Config(void)
   MPU_InitStruct.BaseAddress = 0x10040000;
   MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER6;
+  MPU_InitStruct.BaseAddress = 0x38000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_64KB;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */
