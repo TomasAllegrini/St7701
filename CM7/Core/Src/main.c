@@ -24,6 +24,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include <string.h>
 
 /* USER CODE END Includes */
 
@@ -82,6 +84,16 @@ const osThreadAttr_t videoTask_attributes = {
 /* USER CODE BEGIN PV */
 OTM8009A_Object_t OTM8009AObj;
 OTM8009A_IO_t IOCtx;
+volatile struct {
+  HAL_StatusTypeDef wr_sleep_out;
+  HAL_StatusTypeDef wr_disp_on;
+  int32_t rd_power_ret;
+  int32_t rd_pixfmt_ret;
+  int32_t rd_status_ret;
+  uint8_t power_mode;
+  uint8_t pixel_format;
+  uint8_t display_status[4];
+} g_st7701_smoke;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,6 +114,7 @@ extern void videoTaskFunc(void *argument);
 
 /* USER CODE BEGIN PFP */
 static void UART1_DebugMessage(const char *msg);
+static void ST7701_SmokeTest(void);
 
 /* USER CODE END PFP */
 
@@ -126,6 +139,92 @@ static void UART1_DebugMessage(const char *msg)
     (void)HAL_UART_Transmit(&huart1, (const uint8_t *)msg, len, 100U);
   }
 }
+
+
+// --- helper lectura DSI ---
+static int dsi_rd(uint8_t cmd, uint8_t *buf, uint32_t n)
+{
+  return DSI_IO_Read(0, cmd, buf, n);
+}
+
+// --- helper write DCS corto sin params ---
+static HAL_StatusTypeDef dsi_dcs_short0(uint8_t cmd)
+{
+  return HAL_DSI_ShortWrite(&hdsi, 0, DSI_DCS_SHORT_PKT_WRITE_P0, cmd, 0x00);
+}
+
+// --- opcional: reset HW del panel (si existe) ---
+static void panel_hw_reset(void)
+{
+#ifdef LCD_RESET_Pin
+  HAL_GPIO_WritePin(LCD_RESET_GPIO_Port, LCD_RESET_Pin, GPIO_PIN_RESET);
+  HAL_Delay(20);
+  HAL_GPIO_WritePin(LCD_RESET_GPIO_Port, LCD_RESET_Pin, GPIO_PIN_SET);
+  HAL_Delay(10);
+#endif
+}
+
+static int ids_are_valid(uint8_t id1, uint8_t id2, uint8_t id3)
+{
+  // válido si NO son todos 00 y NO son todos FF
+  if (id1==0x00 && id2==0x00 && id3==0x00) return 0;
+  if (id1==0xFF && id2==0xFF && id3==0xFF) return 0;
+  return 1;
+}
+
+// ------------------------------------------------------------
+// Smoke test ST7701 (mínimo)
+// Devuelve 1 si "parece responder", 0 si no pudo confirmarse.
+// ------------------------------------------------------------
+int ST7701_SmokeTest_Min(void)
+{
+  uint8_t id1=0, id2=0, id3=0;
+  uint8_t pm=0, pf=0, st[4]={0};
+
+  UART1_DebugMessage("[ST7701] Smoke start\r\n");
+
+  panel_hw_reset();
+
+  if (HAL_DSI_Start(&hdsi) != HAL_OK) {
+    UART1_DebugMessage("[ST7701] HAL_DSI_Start FAIL\r\n");
+    return 0;
+  }
+
+  // Salir de sleep
+  (void)dsi_dcs_short0(0x11);  // SLPOUT
+  HAL_Delay(120);
+
+  // (Opcional) encender display
+  (void)dsi_dcs_short0(0x29);  // DISPON
+  HAL_Delay(20);
+
+  // IDs ST7701: RDID1/2/3 (0xDA/0xDB/0xDC) :contentReference[oaicite:1]{index=1}
+  int r1 = dsi_rd(0xDA, &id1, 1);
+  int r2 = dsi_rd(0xDB, &id2, 1);
+  int r3 = dsi_rd(0xDC, &id3, 1);
+  char msgBuf[128];
+  sprintf(msgBuf, "[ST7701] RDID ret=%d/%d/%d val=%02X %02X %02X\r\n",
+             r1, r2, r3, id1, id2, id3);
+  UART1_DebugMessage(msgBuf);
+
+  // Lecturas extra (para debug)
+  int rp = dsi_rd(0x0A, &pm, 1);
+  int rf = dsi_rd(0x0C, &pf, 1);
+  int rs = dsi_rd(0x09, st, 4);
+  sprintf(msgBuf, "[ST7701] rd0A ret=%d val=%02X | rd0C ret=%d val=%02X | rd09 ret=%d val=%02X %02X %02X %02X\r\n",
+             rp, pm, rf, pf, rs, st[0], st[1], st[2], st[3]);
+  UART1_DebugMessage(msgBuf);
+
+  // Dictamen simple
+  if (ids_are_valid(id1, id2, id3)) {
+    UART1_DebugMessage("[ST7701] OK: panel responde (IDs validos)\r\n");
+    return 1;
+  }
+
+  UART1_DebugMessage("[ST7701] NO CONFIRMADO: IDs 00/FF (puede ser lectura/BTA o panel)\r\n");
+  return 0;
+}
+
 
 /* USER CODE END 0 */
 
@@ -506,6 +605,8 @@ static void MX_DSIHOST_DSI_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN DSIHOST_Init 2 */
+
+  ST7701_SmokeTest_Min();
 
   /* USER CODE END DSIHOST_Init 2 */
 
